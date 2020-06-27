@@ -1,5 +1,11 @@
 'use strict';
 
+
+let allowedResources = [
+  "AWS::Events::Rule",
+  "AWS::SNS::Topic"
+];
+
 function isEquivalent(a, b) {
   var aProps = Object.keys(a);
   var bProps = Object.keys(b);
@@ -197,53 +203,44 @@ class ServerlessPlugin {
           let region = null;
           let accountId = null;
 
-          // Tagging SNS  - started
-          let AWS_topics = result.StackResources.filter(a => { return a.ResourceType == "AWS::SNS::Topic" });
-          this._log(`${AWS_topics.length} topics found into AWS`);
-          AWS_topics.forEach(AWS_topic => {
-            let topic = topics.find(t => { return t.logicalId == AWS_topic.LogicalResourceId });
+          // Tagging common  - started
+          let AWSObjs = result.StackResources.filter(a => { return allowedResources.includes(a.ResourceType) });
+          this._log(`${AWSObjs.length} resources found into AWS for which tagging will be checked`);
 
-            let tagArn = AWS_topic.PhysicalResourceId;
-            if (topic == undefined || (topic.tags && Object.keys(topic.tags).length == 0)) {
-              this._log(`No tag found for ${tagArn}, hence performing cleaning of old tags(if exists)`);
-
-              return ensureCleanedTagging(tagArn, this._provider, "SNS", {}, this._log);;
-            } else {
-              this._log(`Performing tagging on rule: ${tagArn}`);
-
-              return ensureCleanedTagging(tagArn, this._provider, "SNS", topic.tags, this._log);
-            }
-          });
-          this._serverless.cli.log("SNS tagging finished...");
-          // Tagging SNS  - completed
-
-          // Tagging Schedule  - started
-          let AWS_schedules = result.StackResources.filter(a => { return a.ResourceType == "AWS::Events::Rule" });
-          this._log(`${AWS_schedules.length} schedules found into AWS`);
-
-          AWS_schedules.forEach(AWS_schedule => {
-            let schedule = schedules.find(t => { return t.logicalId == AWS_schedule.LogicalResourceId });
+          AWSObjs.forEach(AWSObj => {
+            let awsObj = undefined;
+            let tagArn = undefined;
+            let service = undefined;
 
             if (!partition || !region || !accountId) {
-              let stackIdSplit = AWS_schedule.StackId.split(":");
+              let stackIdSplit = AWSObj.StackId.split(":");
               partition = stackIdSplit[1];
               region = stackIdSplit[3];
               accountId = stackIdSplit[4];
             }
-            let tagArn = `arn:${partition}:events:${region}:${accountId}:rule/${AWS_schedule.PhysicalResourceId}`;
 
-            if (schedule == undefined || Object.keys(schedule.tags).length == 0) {
-              this._log(`Not tag found for ${tagArn}, hence performing cleaning of old tags(if exists)`);
+            if (AWSObj.ResourceType == "AWS::SNS::Topic") {
+              awsObj = topics.find(t => { return t.logicalId == AWSObj.LogicalResourceId });
+              tagArn = AWSObj.PhysicalResourceId;
+              service = "SNS";
+            } else if (AWSObj.ResourceType == "AWS::Events::Rule") {
+              awsObj = schedules.find(t => { return t.logicalId == AWSObj.LogicalResourceId });
+              tagArn = `arn:${partition}:events:${region}:${accountId}:rule/${AWSObj.PhysicalResourceId}`;
+              service = "EventBridge";
+            }
 
-              return ensureCleanedTagging(tagArn, this._provider, "EventBridge", {}, this._log);;
-            } else {
-              this._log(`Performing tagging on rule: ${tagArn}`);
-
-              return ensureCleanedTagging(tagArn, this._provider, "EventBridge", schedule.tags, this._log);
+            if (tagArn && service) {
+              if (awsObj == undefined || Object.keys(awsObj.tags).length == 0) {
+                this._log(`Not tag found for ${tagArn}, hence performing cleaning of old tags(if exists)`);
+                return ensureCleanedTagging(tagArn, this._provider, service, {}, this._log);;
+              } else {
+                this._log(`Performing tagging on rule: ${tagArn}`);
+                return ensureCleanedTagging(tagArn, this._provider, service, awsObj.tags, this._log);
+              }
             }
           });
           this._serverless.cli.log("Schedule tagging finished...");
-          // Tagging Schedule  - completed
+          // Tagging common  - completed
 
         }
       });
