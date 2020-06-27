@@ -113,7 +113,7 @@ class ServerlessPlugin {
           AWS_schedules.forEach(AWS_schedule => {
             let schedule = schedules.find(t => { return t.logicalId == AWS_schedule.LogicalResourceId });
             if (schedule == undefined) {
-              this._log("Not tag found for ${AWS_schedule.LogicalResourceId}");
+              this._log(`Not tag found for ${AWS_schedule.LogicalResourceId}`);
               return;
             }
             let tags = schedule.tags;
@@ -127,11 +127,57 @@ class ServerlessPlugin {
             }
 
             let tagArn = `arn:${partition}:events:${region}:${accountId}:rule/${AWS_schedule.PhysicalResourceId}`;
-            this._provider.request('EventBridge', 'tagResource',
+            this._log(`Tagging rule: ${tagArn}`);
+
+            // Get Old tags
+            this._provider.request('EventBridge', 'listTagsForResource',
               {
-                ResourceARN: tagArn,
-                Tags: Object.keys(tags).map(k => ({ Key: k, Value: tags[k] }))
+                ResourceARN: tagArn
+              }).then(oldTagResp => {
+                this._log(`oldTagResp ${JSON.stringify(oldTagResp)}`);
+                if (oldTagResp) {
+                  let newTagKeys = Object.keys(tags);
+                  let invalidTags = oldTagResp.Tags.map(tag => { return tag.Key }).filter(key => { return !newTagKeys.includes(key) });
+
+                  if (invalidTags) {
+                    this._log(`Removing ${JSON.stringify(invalidTags)} tags from rule: ${tagArn}`);
+
+                    // Remove Old tags
+                    this._provider.request('EventBridge', 'untagResource',
+                      {
+                        ResourceARN: tagArn,
+                        TagKeys: invalidTags
+                      }).then(tagRemovalResp => {
+                        this._log(`Applying new/updated tags after removing of invalid tags from rule: ${tagArn}`);
+
+                        // Apply new tags
+                        this._provider.request('EventBridge', 'tagResource',
+                          {
+                            ResourceARN: tagArn,
+                            Tags: Object.keys(tags).map(k => ({ Key: k, Value: tags[k] }))
+                          });
+                      });
+                  } else {
+                    this._log(`No invalid tags exists for rule: ${tagArn}`);
+                    // Apply new tags
+                    this._provider.request('EventBridge', 'tagResource',
+                      {
+                        ResourceARN: tagArn,
+                        Tags: Object.keys(tags).map(k => ({ Key: k, Value: tags[k] }))
+                      });
+                  }
+                } else {
+                  this._log(`No Old tags exists for rule: ${tagArn}`);
+
+                  // Apply new tags
+                  this._provider.request('EventBridge', 'tagResource',
+                    {
+                      ResourceARN: tagArn,
+                      Tags: Object.keys(tags).map(k => ({ Key: k, Value: tags[k] }))
+                    });
+                }
               });
+
           });
           this._serverless.cli.log("Schedule tagging finished...");
           // Tagging Schedule  - completed
