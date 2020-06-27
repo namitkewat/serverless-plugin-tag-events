@@ -79,10 +79,15 @@ class ServerlessPlugin {
 
     /* Get the deployed SNS (mainly to get the arn for created Topics */
     this._provider
-      .request('CloudFormation', 'listStackResources', { StackName: stackName })
+      .request('CloudFormation', 'describeStackResources', { StackName: stackName })
       .then(result => {
         if (result) {
-          let AWS_topics = result.StackResourceSummaries.filter(a => { return a.ResourceType == "AWS::SNS::Topic" });
+          let partition = null;
+          let region = null;
+          let accountId = null;
+
+          // Tagging SNS  - started
+          let AWS_topics = result.StackResources.filter(a => { return a.ResourceType == "AWS::SNS::Topic" });
           this._log(`${AWS_topics.length} topics found into AWS`);
           AWS_topics.forEach(AWS_topic => {
             let topic = topics.find(t => { return t.logicalId == AWS_topic.LogicalResourceId });
@@ -100,9 +105,10 @@ class ServerlessPlugin {
               });
           });
           this._serverless.cli.log("SNS tagging finished...");
+          // Tagging SNS  - completed
 
-
-          let AWS_schedules = result.StackResourceSummaries.filter(a => { return a.ResourceType == "AWS::Events::Rule" });
+          // Tagging Schedule  - started
+          let AWS_schedules = result.StackResources.filter(a => { return a.ResourceType == "AWS::Events::Rule" });
           this._log(`${AWS_schedules.length} schedules found into AWS`);
           AWS_schedules.forEach(AWS_schedule => {
             let schedule = schedules.find(t => { return t.logicalId == AWS_schedule.LogicalResourceId });
@@ -112,16 +118,25 @@ class ServerlessPlugin {
             }
             let tags = schedule.tags;
             if (tags.length == 0) return;
-            this._log(`Tagging ${AWS_schedule.LogicalResourceId}`);
-            this._provider.request('SNS', 'tagResource',
+
+            if (!partition || !region || !accountId) {
+              let stackIdSplit = AWS_schedule.StackId.split(":");
+              partition = stackIdSplit[1];
+              region = stackIdSplit[3];
+              accountId = stackIdSplit[4];
+            }
+
+            let tagArn = `arn:${partition}:events:${region}:${accountId}:rule/${AWS_schedule.PhysicalResourceId}`;
+            this._provider.request('EventBridge', 'tagResource',
               {
-                ResourceArn: AWS_schedule.PhysicalResourceId,
+                ResourceARN: tagArn,
                 Tags: Object.keys(tags).map(k => ({ Key: k, Value: tags[k] }))
               });
           });
           this._serverless.cli.log("Schedule tagging finished...");
-        }
+          // Tagging Schedule  - completed
 
+        }
       });
   }
 }
