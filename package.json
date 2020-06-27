@@ -1,0 +1,17 @@
+{
+  "name": "serverless-plugin-events",
+  "version": "1.0.1",
+  "description": "Tag Events",
+  "main": "tagger.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/namitkewat/serverless-plugin-events"
+  },
+  "author": "Namit Kewat <<namitkewat@gmail.com>>",
+  "license": "MIT",
+  "keywords": [
+    "serverless",
+    "events",
+    "tag"
+  ]
+}
