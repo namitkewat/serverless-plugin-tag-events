@@ -129,7 +129,7 @@ class ServerlessPlugin {
   }
 
   afterDeployStack() {
-    this._serverless.cli.log("SNS tagging start...");
+    this._serverless.cli.log("Tagging start...");
     const stackName = this._provider.naming.getStackName();
     this._log(`Stack name ${stackName}`);
 
@@ -190,11 +190,13 @@ class ServerlessPlugin {
         }
 
       });
+
       this._log(`${topics.length} topics found for tagging in serverless conf`);
       this._log(`${schedules.length} schedules found for tagging in serverless conf`);
+
     });
 
-    /* Get the deployed SNS (mainly to get the arn for created Topics */
+    /* Update tags for deployed resources */
     this._provider
       .request('CloudFormation', 'describeStackResources', { StackName: stackName })
       .then(result => {
@@ -239,7 +241,7 @@ class ServerlessPlugin {
               }
             }
           });
-          this._serverless.cli.log("Schedule tagging finished...");
+          this._serverless.cli.log("Tagging finished...");
           // Tagging common  - completed
 
         }
