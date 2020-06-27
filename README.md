@@ -35,7 +35,7 @@ functions:
           topicName: aggregate
           displayName: Data aggregation pipeline
           tags:
-              foo: bar
+            foo: bar
       - schedule:
           name: test
           description: 'test schedule'
@@ -65,7 +65,7 @@ functions:
           topicName: aggregate
           displayName: Data aggregation pipeline
           tags:
-              foo: quux
+            foo: quux
       - schedule:
           name: test
           description: 'test schedule'
