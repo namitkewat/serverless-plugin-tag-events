@@ -1,6 +1,6 @@
-# serverless-plugin-tagsns
+# serverless-plugin-tag-events
 
-A serverless plugin to tag SNS Topics & Schedules on AWS
+A serverless plugin to tag SNS Topics & Schedulers on AWS
 
 ## Features
 
