@@ -1,17 +1,22 @@
 {
-  "name": "serverless-plugin-events",
-  "version": "1.0.1",
-  "description": "Tag Events",
-  "main": "tagger.js",
+  "name": "serverless-plugin-tag-events",
+  "version": "1.0.0",
+  "description": "Serverless plugin to tag/untag various Events",
+  "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/namitkewat/serverless-plugin-events"
+    "url": "https://github.com/namitkewat/serverless-plugin-tag-events.git"
   },
   "author": "Namit Kewat <<namitkewat@gmail.com>>",
   "license": "MIT",
   "keywords": [
     "serverless",
+    "plugin",
     "events",
-    "tag"
-  ]
+    "tag",
+    "scheudle",
+    "sns",
+    "tagging"
+  ],
+  "homepage": "https://github.com/namitkewat/serverless-plugin-tag-events"
 }

@@ -1,13 +1,15 @@
 # serverless-plugin-tag-events
 
-A serverless plugin to tag SNS Topics & Schedulers on AWS
+A serverless plugin to tag various events.
 
 ## Features
 
-- Tag the sns topics & schedules
+- Tag & Untag is supported on following events:
+  - SNS
+  - Schedule
 - Uses provider tags, events.sns tags, event.schedule tags
 
-## Instalation
+## Installation
 
 ```bash
 yarn add serverless-plugin-tag-events
@@ -46,7 +48,11 @@ functions:
             foo: bar
 ```
 
-Or if you want to apply tags configuration to all topics/schedules in your service, you can add the configuration to the higher level provider object. Tags configured at the sns level are merged with those at the provider level, so your topic/schedule with specific tags will get the tags defined at the provider level. If a tag with the same key is defined at both the function and provider levels, the function-specific value overrides the provider-level default value. For example:
+Or if you want to apply tags configuration to all topics/schedules in your service, you can add the configuration to the higher level provider object.
+
+Tags configured at the sns level are merged with those at the provider level, so your topic/schedule with specific tags will get the tags defined at the provider level.
+
+If a tag with the same key is defined at both the function and provider levels, the function-specific value overrides the provider-level default value. For example:
 
 ```yaml
 # serverless.yml

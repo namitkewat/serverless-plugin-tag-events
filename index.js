@@ -62,7 +62,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
               'untagResource',
               Object.assign({}, queryParams, { TagKeys: invalidTags })
             ).then(tagRemovalResp => {
-              logger("tagRemovalResp: ", tagRemovalResp);
+              // logger("tagRemovalResp: ", tagRemovalResp);
 
               logger(`Applying new/updated tags after removing of invalid tags from rule: ${tagArn}`);
 
@@ -104,7 +104,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
           logger(`No Old tags exists for rule: ${tagArn}`);
 
           // Apply new tags
-          this._provider.request(service,
+          provider.request(service,
             'tagResource',
             Object.assign({}, queryParams, {
               Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
@@ -129,16 +129,18 @@ class ServerlessPlugin {
   }
 
   afterDeployStack() {
-    this._serverless.cli.log("Tagging start...");
-    const stackName = this._provider.naming.getStackName();
-    this._log(`Stack name ${stackName}`);
+    let self = this;
+
+    self._serverless.cli.log("Tagging start...");
+    const stackName = self._provider.naming.getStackName();
+    self._log(`Stack name ${stackName}`);
 
     let topics = [];
     let schedules = [];
 
     /* Get the topic tags from the configuration */
-    this._serverless.service.getAllFunctions().forEach(functionName => {
-      const functionObj = this._serverless.service.getFunction(functionName);
+    self._serverless.service.getAllFunctions().forEach(functionName => {
+      const functionObj = self._serverless.service.getFunction(functionName);
       let scheduleNumberInFunction = 0;
 
       if (!("events" in functionObj)) {
@@ -159,8 +161,8 @@ class ServerlessPlugin {
             } else {
               topicName = event.sns.topicName;
             }
-            tags = Object.assign({}, this._serverless.service.provider.tags, event.sns.tags);
-            topicLogicalId = this._provider.naming.getTopicLogicalId(topicName)
+            tags = Object.assign({}, self._serverless.service.provider.tags, event.sns.tags);
+            topicLogicalId = self._provider.naming.getTopicLogicalId(topicName)
             topics.push({ "logicalId": topicLogicalId, 'tags': tags });
           } else if (typeof event.sns === 'string') {
             if (event.sns.indexOf('arn:') === 0) {
@@ -170,15 +172,15 @@ class ServerlessPlugin {
             } else {
               topicName = event.sns;
             }
-            tags = Object.assign({}, this._serverless.service.provider.tags);
-            topicLogicalId = this._provider.naming.getTopicLogicalId(topicName)
+            tags = Object.assign({}, self._serverless.service.provider.tags);
+            topicLogicalId = self._provider.naming.getTopicLogicalId(topicName)
             topics.push({ "logicalId": topicLogicalId, 'tags': tags });
           }
         } else if (event.schedule) {
           scheduleNumberInFunction++;
 
-          let tags = Object.assign({}, this._serverless.service.provider.tags, event.schedule.tags);
-          let scheduleLogicalId = this._provider.naming.getScheduleLogicalId(
+          let tags = Object.assign({}, self._serverless.service.provider.tags, event.schedule.tags);
+          let scheduleLogicalId = self._provider.naming.getScheduleLogicalId(
             functionName,
             scheduleNumberInFunction
           );
@@ -191,61 +193,72 @@ class ServerlessPlugin {
 
       });
 
-      this._log(`${topics.length} topics found for tagging in serverless conf`);
-      this._log(`${schedules.length} schedules found for tagging in serverless conf`);
+      self._log(`${topics.length} topics found for tagging in serverless conf`);
+      self._log(`${schedules.length} schedules found for tagging in serverless conf`);
 
     });
 
     /* Update tags for deployed resources */
-    this._provider
+    return self._provider
       .request('CloudFormation', 'describeStackResources', { StackName: stackName })
       .then(result => {
-        if (result) {
-          let partition = null;
-          let region = null;
-          let accountId = null;
+        return new Promise(function (resolve, reject) {
+          if (result) {
+            let partition = null;
+            let region = null;
+            let accountId = null;
 
-          // Tagging common  - started
-          let AWSObjs = result.StackResources.filter(a => { return allowedResources.includes(a.ResourceType) });
-          this._log(`${AWSObjs.length} resources found into AWS for which tagging will be checked`);
+            let promiseStack = [];
 
-          AWSObjs.forEach(AWSObj => {
-            let awsObj = undefined;
-            let tagArn = undefined;
-            let service = undefined;
+            // Tagging common  - started
+            let AWSObjs = result.StackResources.filter(a => { return allowedResources.includes(a.ResourceType) });
+            self._log(`${AWSObjs.length} resources found into AWS for which tagging will be checked`);
 
-            if (!partition || !region || !accountId) {
-              let stackIdSplit = AWSObj.StackId.split(":");
-              partition = stackIdSplit[1];
-              region = stackIdSplit[3];
-              accountId = stackIdSplit[4];
-            }
+            AWSObjs.forEach(AWSObj => {
+              let awsObj = undefined;
+              let tagArn = undefined;
+              let service = undefined;
 
-            if (AWSObj.ResourceType == "AWS::SNS::Topic") {
-              awsObj = topics.find(t => { return t.logicalId == AWSObj.LogicalResourceId });
-              tagArn = AWSObj.PhysicalResourceId;
-              service = "SNS";
-            } else if (AWSObj.ResourceType == "AWS::Events::Rule") {
-              awsObj = schedules.find(t => { return t.logicalId == AWSObj.LogicalResourceId });
-              tagArn = `arn:${partition}:events:${region}:${accountId}:rule/${AWSObj.PhysicalResourceId}`;
-              service = "EventBridge";
-            }
-
-            if (tagArn && service) {
-              if (awsObj == undefined || Object.keys(awsObj.tags).length == 0) {
-                this._log(`Not tag found for ${tagArn}, hence performing cleaning of old tags(if exists)`);
-                return ensureCleanedTagging(tagArn, this._provider, service, {}, this._log);;
-              } else {
-                this._log(`Performing tagging on rule: ${tagArn}`);
-                return ensureCleanedTagging(tagArn, this._provider, service, awsObj.tags, this._log);
+              if (!partition || !region || !accountId) {
+                let stackIdSplit = AWSObj.StackId.split(":");
+                partition = stackIdSplit[1];
+                region = stackIdSplit[3];
+                accountId = stackIdSplit[4];
               }
-            }
-          });
-          this._serverless.cli.log("Tagging finished...");
-          // Tagging common  - completed
 
-        }
+              if (AWSObj.ResourceType == "AWS::SNS::Topic") {
+                awsObj = topics.find(t => { return t.logicalId == AWSObj.LogicalResourceId });
+                tagArn = AWSObj.PhysicalResourceId;
+                service = "SNS";
+              } else if (AWSObj.ResourceType == "AWS::Events::Rule") {
+                awsObj = schedules.find(t => { return t.logicalId == AWSObj.LogicalResourceId });
+                tagArn = `arn:${partition}:events:${region}:${accountId}:rule/${AWSObj.PhysicalResourceId}`;
+                service = "EventBridge";
+              }
+
+              if (tagArn && service) {
+                if (awsObj == undefined || Object.keys(awsObj.tags).length == 0) {
+                  self._log(`Not tag found for ${tagArn}, hence performing cleaning of old tags(if exists)`);
+                  promiseStack.push(ensureCleanedTagging(tagArn, self._provider, service, {}, self._log));
+                } else {
+                  self._log(`Performing tagging on rule: ${tagArn}`);
+                  promiseStack.push(ensureCleanedTagging(tagArn, self._provider, service, awsObj.tags, self._log));
+                }
+              }
+            });
+
+            return Promise.all(promiseStack).then(resp => {
+              self._serverless.cli.log("Tagging finished...");
+            });
+            // Tagging common  - completed
+          } else {
+            self._serverless.cli.log("Tagging finished...");
+            resolve();
+          }
+
+        });
       });
+
   }
 }
 
