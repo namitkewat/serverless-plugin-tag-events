@@ -1,13 +1,14 @@
 # serverless-plugin-tag-events
 
-A serverless plugin to tag various events.
+A Serverless-framework plugin to tag various events of AWS Lambda function.
 
 ## Features
 
 - Tag & Untag is supported on following events:
   - SNS
   - Schedule
-- Uses provider tags, events.sns tags, event.schedule tags
+- Uses provider level tags & resoruce level tags(such as events.sns tags, event.schedule tags)
+- Resource level tags will have higher priority over provider level tags
 
 ## Installation
 
