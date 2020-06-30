@@ -1,6 +1,6 @@
 {
   "name": "serverless-plugin-tag-events",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Serverless-framework plugin to tag various events of AWS Lambda function ",
   "main": "index.js",
   "repository": {
