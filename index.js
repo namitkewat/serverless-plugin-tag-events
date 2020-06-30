@@ -38,109 +38,77 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
   return new Promise(function (resolve, reject) {
     provider.request(service,
       'listTagsForResource',
-      queryParams).then((listTagErr, listTagResp) => {
-        if (listTagErr) {
-          logger(`[ERROR] - listTagsForResource request failed for ${tagArn}`);
-          logger(listTagErr, listTagErr.stack);
-          reject(listTagErr);
-        } else {
-          if (listTagResp) {
-            let newTagKeys = Object.keys(newTags);
+      queryParams).then((listTagResp) => {
+        if (listTagResp && listTagResp.Tags.length > 0) {
+          let newTagKeys = Object.keys(newTags);
 
-            let invalidTags = [];
-            let oldTagObj = {};
+          let invalidTags = [];
+          let oldTagObj = {};
 
-            if (listTagResp && listTagResp.Tags) {
-              listTagResp.Tags.forEach(tag => {
-                oldTagObj[tag.Key] = tag.Value;
-                if (!newTagKeys.includes(tag.Key)) {
-                  invalidTags.push(tag.Key)
-                }
-              });
+          listTagResp.Tags.forEach(tag => {
+            oldTagObj[tag.Key] = tag.Value;
+            if (!newTagKeys.includes(tag.Key)) {
+              invalidTags.push(tag.Key)
             }
+          });
 
-            if (invalidTags.length > 0) {
-              logger(`Removing ${JSON.stringify(invalidTags)} tags from rule: ${tagArn}`);
+          if (invalidTags.length > 0) {
+            logger(`Removing ${JSON.stringify(invalidTags)} tags from rule: ${tagArn}`);
 
-              // Remove Old tags
+            // Remove Old tags
+            provider.request(service,
+              'untagResource',
+              Object.assign({}, queryParams, { TagKeys: invalidTags })
+            ).then((tagRemovalResp) => {
+
+              logger(`Applying new/updated tags after removing of invalid tags from rule: ${tagArn}`);
+
+              // Apply new tags
               provider.request(service,
-                'untagResource',
-                Object.assign({}, queryParams, { TagKeys: invalidTags })
-              ).then((tagRemovalErr, tagRemovalResp) => {
-                if (tagRemovalErr) {
-                  logger(`[ERROR] - untagResource request failed for ${tagArn}`);
-                  logger(tagRemovalErr, tagRemovalErr.stack);
-                  reject(tagRemovalErr);
-                }
-                // logger("tagRemovalResp: ", tagRemovalResp);
+                'tagResource',
+                Object.assign({}, queryParams, {
+                  Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
+                })
+              ).then((tagUpdateResp) => {
+                resolve(tagUpdateResp);
+              });
 
-                logger(`Applying new/updated tags after removing of invalid tags from rule: ${tagArn}`);
+            });
 
-                // Apply new tags
-                provider.request(service,
-                  'tagResource',
-                  Object.assign({}, queryParams, {
+          } else {
+            logger(`No invalid tags exists for rule: ${tagArn}`);
+
+            if (isEquivalent(oldTagObj, newTags)) {
+              logger(`Old & New tags are equal for rule: ${tagArn} hence skipping the tagging`);
+              resolve();
+            } else {
+              logger(`Applying new/updated tags for rule: ${tagArn}`);
+
+              // Apply new tags
+              provider.request(service,
+                'tagResource',
+                Object.assign({}, queryParams,
+                  {
                     Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
                   })
-                ).then((tagUpdateErr, tagUpdateResp) => {
-                  if (tagUpdateErr) {
-                    logger(`[ERROR] - tagResource request failed for ${tagArn}`);
-                    logger(tagUpdateErr, tagUpdateErr.stack);
-                    reject(tagUpdateErr);
-                  } else {
-                    resolve(tagUpdateResp);
-                  }
-                });
-
+              ).then((tagUpdateResp) => {
+                resolve(tagUpdateResp);
               });
 
-            } else {
-              logger(`No invalid tags exists for rule: ${tagArn}`);
-
-              if (isEquivalent(oldTagObj, newTags)) {
-                logger(`Old & New tags are equal for rule: ${tagArn} hence skipping the tagging`);
-                resolve();
-              } else {
-                logger(`Applying new/updated tags for rule: ${tagArn}`);
-
-                // Apply new tags
-                provider.request(service,
-                  'tagResource',
-                  Object.assign({}, queryParams,
-                    {
-                      Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
-                    })
-                ).then((tagUpdateErr, tagUpdateResp) => {
-                  if (tagUpdateErr) {
-                    logger(`[ERROR] - tagResource request failed for ${tagArn}`);
-                    logger(tagUpdateErr, tagUpdateErr.stack);
-                    reject(tagUpdateErr);
-                  } else {
-                    resolve(tagUpdateResp);
-                  }
-                });
-
-              }
             }
-          } else {
-            logger(`No Old tags exists for rule: ${tagArn}`);
-
-            // Apply new tags
-            provider.request(service,
-              'tagResource',
-              Object.assign({}, queryParams, {
-                Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
-              })
-            ).then((tagUpdateErr, tagUpdateResp) => {
-              if (tagUpdateErr) {
-                logger(`[ERROR] - tagResource request failed for ${tagArn}`);
-                logger(tagUpdateErr, tagUpdateErr.stack);
-                reject(tagUpdateErr);
-              } else {
-                resolve(tagUpdateResp);
-              }
-            });
           }
+        } else {
+          logger(`No Old tags exists for rule: ${tagArn}`);
+
+          // Apply new tags
+          provider.request(service,
+            'tagResource',
+            Object.assign({}, queryParams, {
+              Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
+            })
+          ).then((tagUpdateResp) => {
+            resolve(tagUpdateResp);
+          });
         }
       });
   });
