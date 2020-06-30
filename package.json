@@ -1,22 +1,33 @@
 {
   "name": "serverless-plugin-tag-events",
   "version": "1.0.0",
-  "description": "Serverless plugin to tag/untag various Events",
+  "description": "Serverless-framework plugin to tag various events of AWS Lambda function ",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/namitkewat/serverless-plugin-tag-events.git"
   },
-  "author": "Namit Kewat <<namitkewat@gmail.com>>",
+  "author": "Namit Kewat <namitkewat@gmail.com>",
   "license": "MIT",
   "keywords": [
     "serverless",
+    "serverless framework plugin",
+    "serverless plugins",
+    "aws",
+    "amazon",
+    "amazon web services",
+    "aws lambda",
     "plugin",
     "events",
     "tag",
     "scheudle",
     "sns",
-    "tagging"
+    "tagging",
+    "resource tagging",
+    "aws resource tagging"
   ],
-  "homepage": "https://github.com/namitkewat/serverless-plugin-tag-events"
+  "homepage": "https://github.com/namitkewat/serverless-plugin-tag-events",
+  "bugs": {
+    "url": "https://github.com/namitkewat/serverless-plugin-tag-events/issues"
+  }
 }
