@@ -154,6 +154,7 @@ class ServerlessPlugin {
           let topicLogicalId;
           if (typeof event.sns === 'object') {
             if (event.sns.arn) {
+              self._serverless.cli.log(`SNS Object: ${JSON.stringify(event.sns)}`);
               topicArn = event.sns.arn;
               const splitArn = topicArn.split(':');
               topicName = splitArn[splitArn.length - 1];
