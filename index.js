@@ -53,7 +53,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
           });
 
           if (invalidTags.length > 0) {
-            logger(`Removing ${JSON.stringify(invalidTags)} tags from rule: ${tagArn}`);
+            logger(`Removing ${JSON.stringify(invalidTags)} tags from: ${tagArn}`);
 
             // Remove Old tags
             provider.request(service,
@@ -61,7 +61,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
               Object.assign({}, queryParams, { TagKeys: invalidTags })
             ).then((tagRemovalResp) => {
 
-              logger(`Applying new/updated tags after removing of invalid tags from rule: ${tagArn}`);
+              logger(`Applying new/updated tags after removing of invalid tags from: ${tagArn}`);
 
               // Apply new tags
               provider.request(service,
@@ -70,19 +70,20 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
                   Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
                 })
               ).then((tagUpdateResp) => {
+                logger(`Resource tagging done for : ${tagArn}`);
                 resolve(tagUpdateResp);
               });
 
             });
 
           } else {
-            logger(`No invalid tags exists for rule: ${tagArn}`);
+            logger(`No invalid tags exists for: ${tagArn}`);
 
             if (isEquivalent(oldTagObj, newTags)) {
-              logger(`Old & New tags are equal for rule: ${tagArn} hence skipping the tagging`);
+              logger(`Old & New tags are equal for: ${tagArn} hence skipping the tagging`);
               resolve();
             } else {
-              logger(`Applying new/updated tags for rule: ${tagArn}`);
+              logger(`Applying new/updated tags for: ${tagArn}`);
 
               // Apply new tags
               provider.request(service,
@@ -92,13 +93,14 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
                     Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
                   })
               ).then((tagUpdateResp) => {
+                logger(`Resource tagging done for : ${tagArn}`);
                 resolve(tagUpdateResp);
               });
 
             }
           }
         } else {
-          logger(`No Old tags exists for rule: ${tagArn}`);
+          logger(`No Old tags exists for: ${tagArn}`);
 
           // Apply new tags
           provider.request(service,
@@ -107,6 +109,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
               Tags: Object.keys(newTags).map(k => ({ Key: k, Value: newTags[k] }))
             })
           ).then((tagUpdateResp) => {
+            logger(`Resource tagging done for : ${tagArn}`);
             resolve(tagUpdateResp);
           });
         }
@@ -238,7 +241,7 @@ class ServerlessPlugin {
                   self._log(`Not tag found for ${tagArn}, hence performing cleaning of old tags(if exists)`);
                   promiseStack.push(ensureCleanedTagging(tagArn, self._provider, service, {}, self._log));
                 } else {
-                  self._log(`Performing tagging on rule: ${tagArn}`);
+                  self._log(`Performing tagging on: ${tagArn}`);
                   promiseStack.push(ensureCleanedTagging(tagArn, self._provider, service, awsObj.tags, self._log));
                 }
               }
