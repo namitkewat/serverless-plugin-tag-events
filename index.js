@@ -154,11 +154,14 @@ class ServerlessPlugin {
           let topicLogicalId;
           if (typeof event.sns === 'object') {
             if (event.sns.arn) {
-              self._serverless.cli.log(`SNS Object: ${JSON.stringify(event.sns)}`);
-              topicArn = event.sns.arn;
-              const splitArn = topicArn.split(':');
-              topicName = splitArn[splitArn.length - 1];
-              topicName = event.sns.topicName || topicName;
+              if (typeof(event.sns.arn) == 'string') {
+                topicArn = event.sns.arn;
+                const splitArn = topicArn.split(':');
+                topicName = splitArn[splitArn.length - 1];
+                topicName = event.sns.topicName || topicName;
+              } else if(event.sns.topicName){
+                topicName = event.sns.topicName;
+              }
             } else {
               topicName = event.sns.topicName;
             }
