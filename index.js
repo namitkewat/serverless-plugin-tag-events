@@ -117,7 +117,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
   });
 }
 
-class ServerlessPlugin {
+class ServerlessTagEventsPlugin {
   constructor(serverless, options) {
     this._serverless = serverless;
     this._provider = serverless.getProvider('aws');
@@ -154,12 +154,12 @@ class ServerlessPlugin {
           let topicLogicalId;
           if (typeof event.sns === 'object') {
             if (event.sns.arn) {
-              if (typeof(event.sns.arn) == 'string') {
+              if (typeof (event.sns.arn) == 'string') {
                 topicArn = event.sns.arn;
                 const splitArn = topicArn.split(':');
                 topicName = splitArn[splitArn.length - 1];
                 topicName = event.sns.topicName || topicName;
-              } else if(event.sns.topicName){
+              } else if (event.sns.topicName) {
                 topicName = event.sns.topicName;
               }
             } else {
@@ -200,6 +200,34 @@ class ServerlessPlugin {
       self._log(`${topics.length} topics found for tagging in serverless conf`);
       self._log(`${schedules.length} schedules found for tagging in serverless conf`);
 
+    });
+
+    /* Process Events from plug-ins */
+    self._serverless.pluginManager.plugins.forEach(pluginObj => {
+      if (pluginObj.constructor.name === "ServerlessStepFunctions") {
+        self._log(`Processing tags for ${pluginObj.constructor.name} Plug-in`);
+
+        pluginObj.getAllStateMachines().forEach(stateMachineName => {
+          const stateMachineObj = pluginObj.getStateMachine(stateMachineName);
+          let scheduleNumberInFunction = 0;
+
+          if (stateMachineObj.events) {
+            stateMachineObj.events.forEach(event => {
+              if (event.schedule) {
+                scheduleNumberInFunction++;
+
+                let tags = Object.assign({}, self._serverless.service.provider.tags, event.schedule.tags);
+                let scheduleLogicalId = pluginObj.getScheduleLogicalId(
+                  stateMachineName,
+                  scheduleNumberInFunction
+                );
+
+                schedules.push({ "logicalId": scheduleLogicalId, 'tags': tags });
+              }
+            });
+          }
+        });
+      }
     });
 
     /* Update tags for deployed resources */
@@ -267,4 +295,4 @@ class ServerlessPlugin {
   }
 }
 
-module.exports = ServerlessPlugin;
+module.exports = ServerlessTagEventsPlugin;
