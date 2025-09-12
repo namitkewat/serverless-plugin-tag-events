@@ -47,7 +47,7 @@ function ensureCleanedTagging(tagArn, provider, service, newTags, logger) {
 
           listTagResp.Tags.forEach(tag => {
             oldTagObj[tag.Key] = tag.Value;
-            if (!newTagKeys.includes(tag.Key)) {
+            if (!newTagKeys.includes(tag.Key) && !/^aws:|STAGE/.test(tag.Key)) {
               invalidTags.push(tag.Key)
             }
           });
